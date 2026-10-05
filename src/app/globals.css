@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+/*
+  Token warna satu sumber.
+  Tema terkunci satu per halaman, dan mengikuti prefers-color-scheme.
+  Nama token dipakai lewat Tailwind v4 (@theme inline) sehingga komponen
+  tidak perlu menulis varian dark: berulang.
+
+  Kontras:
+  - light: ink #18181b di canvas #f6f7f8, muted #52525b di surface #ffffff,
+    accent #0f5f57 dengan teks putih, danger #b42318 di surface.
+  - dark: ink #f4f4f5 di surface #16171a, muted #a5a5ad di surface,
+    accent #2fbfae dengan teks gelap #05201c, danger #fda29b.
+*/
+:root {
+  --canvas: #f6f7f8;
+  --surface: #ffffff;
+  --surface-alt: #f1f2f4;
+  --ink: #18181b;
+  --ink-muted: #52525b;
+  --line: #d9d9de;
+  --line-strong: #a1a1aa;
+  --accent: #0f5f57;
+  --accent-hover: #0b4a44;
+  --accent-ink: #ffffff;
+  --accent-soft: #e6efed;
+  --accent-soft-ink: #0b4a44;
+  --danger: #b42318;
+  --danger-ink: #ffffff;
+  --danger-soft: #fdf1f0;
+  --danger-soft-ink: #912018;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #0b0c0e;
+    --surface: #16171a;
+    --surface-alt: #1e2024;
+    --ink: #f4f4f5;
+    --ink-muted: #a5a5ad;
+    --line: #2b2d31;
+    --line-strong: #6b6d74;
+    --accent: #2fbfae;
+    --accent-hover: #45d2c2;
+    --accent-ink: #05201c;
+    --accent-soft: #10231f;
+    --accent-soft-ink: #6fdfd0;
+    --danger: #fda29b;
+    --danger-ink: #2a0b08;
+    --danger-soft: #2a1310;
+    --danger-soft-ink: #fbb3ad;
+  }
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-ink: var(--accent-soft-ink);
+  --color-danger: var(--danger);
+  --color-danger-ink: var(--danger-ink);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-soft-ink: var(--danger-soft-ink);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  /* Cukup untuk mencegah halaman melompat, bukan tinggi layar penuh. */
+  min-height: 100dvh;
+}
+
+/* Fokus keyboard selalu terlihat dan kontras di kedua tema. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Motion dibatasi: hanya transisi warna dan transform singkat. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
