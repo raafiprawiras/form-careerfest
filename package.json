@@ -12,6 +12,7 @@
     "verify": "npm run lint && npm run typecheck && npm run test"
   },
   "dependencies": {
+    "framer-motion": "^14.0.0",
     "googleapis": "^183.0.0",
     "next": "16.3.8",
     "react": "19.2.8",

@@ -5,7 +5,7 @@ export function WelcomeSlide({ onStart }: { onStart: () => void }) {
     <section className="flex flex-1 flex-col gap-6">
       <div className="flex flex-col gap-4">
         {/* A-08: logo acara belum tersedia, tampil sebagai slot placeholder. */}
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-line bg-surface-alt text-sm text-ink-muted">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary text-sm font-semibold text-primary-ink">
           Logo
         </div>
         <h1 className="text-3xl font-semibold tracking-tight text-ink sm:text-4xl">

@@ -18,6 +18,7 @@ import type {
   InputHTMLAttributes,
   ReactNode,
 } from "react";
+import { motion } from "framer-motion";
 import { ACCEPTED_FILE_EXTENSIONS } from "@/lib/validation";
 
 const INPUT_BASE =
@@ -42,42 +43,30 @@ export function Button({
 
   if (variant === "primary") {
     return (
-      <button
-        {...rest}
-        className={`${base} bg-accent text-accent-ink hover:bg-accent-hover ${className}`}
-      >
-        {loading ? (
-          <>
-            <span
-              aria-hidden="true"
-              className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-            />
-            Mengirim...
-          </>
-        ) : (
-          children
-        )}
-      </button>
+      <motion.span whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.14 }} className="inline-flex">
+        <button {...rest} className={`${base} bg-primary text-primary-ink hover:bg-primary-hover ${className}`}>
+          {loading ? (
+            <>
+              <span aria-hidden="true" className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Mengirim...
+            </>
+          ) : children}
+        </button>
+      </motion.span>
     );
   }
 
   return (
-    <button
-      {...rest}
-      className={`${base} border border-line bg-surface text-ink hover:border-line-strong ${className}`}
-    >
-      {loading ? (
-        <>
-          <span
-            aria-hidden="true"
-            className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-          />
-          Mengirim...
-        </>
-      ) : (
-        children
-      )}
-    </button>
+    <motion.span whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.14 }} className="inline-flex">
+      <button {...rest} className={`${base} border border-line bg-surface text-ink hover:border-line-strong ${className}`}>
+        {loading ? (
+          <>
+            <span aria-hidden="true" className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            Mengirim...
+          </>
+        ) : children}
+      </button>
+    </motion.span>
   );
 }
 
@@ -180,7 +169,11 @@ export function FileField({
         </p>
       ) : null}
       {value ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface-alt px-4 py-3">
+        <motion.div
+          initial={{ opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface-alt px-4 py-3"
+        >
           <p className="text-sm text-ink">
             File terpilih: <span className="font-mono">{value.name}</span> (
             {formatFileSize(value.size)})
@@ -192,7 +185,7 @@ export function FileField({
           >
             Hapus file
           </button>
-        </div>
+        </motion.div>
       ) : (
         <input
           id={id}
@@ -251,12 +244,14 @@ export function RadioGroup({
       {helper ? <p className="text-sm text-ink-muted">{helper}</p> : null}
       <div className="flex flex-col gap-2">
         {options.map((option) => (
-          <label
+          <motion.label
             key={option.value}
             className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-base transition-colors ${value === option.value
               ? "border-accent bg-accent-soft text-accent-soft-ink"
               : "border-line bg-surface text-ink"
               }`}
+            whileTap={{ scale: 0.99 }}
+            transition={{ duration: 0.14 }}
           >
             <input
               type="radio"
@@ -268,7 +263,7 @@ export function RadioGroup({
               className="size-4 accent-[var(--accent)]"
             />
             {option.label}
-          </label>
+          </motion.label>
         ))}
       </div>
       {error ? (

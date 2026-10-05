@@ -7,6 +7,7 @@ import {
   useState,
   type FormEvent,
 } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Button, Notice } from "@/components/registration/ui";
 import { ProgressBar } from "@/components/registration/progress-bar";
 import { WelcomeSlide } from "@/components/registration/slides/welcome-slide";
@@ -246,6 +247,15 @@ export function RegistrationForm() {
             : `Langkah ${progressPercent(slide)} persen dari pengisian form selesai.`}
       </p>
 
+      <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={slide}
+        initial={{ opacity: 0, x: index > 0 ? 18 : 0 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: index > 0 ? -18 : 0 }}
+        transition={{ duration: 0.22, ease: "easeOut" }}
+        className="flex min-h-0 flex-1 flex-col"
+      >
       {slide === "success" ? (
         <SuccessSlide
           fullName={normalizeFullName(values.fullName)}
@@ -365,6 +375,8 @@ export function RegistrationForm() {
           ) : null}
         </form>
       )}
+      </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
