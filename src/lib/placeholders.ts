@@ -14,8 +14,9 @@ export const EVENT = {
 } as const;
 
 export const PENDING_CONTENT = {
-  /** A-05: handle/domain Instagram resmi acara. */
-  instagramAccountUrl: "[PLACEHOLDER: link Instagram Career Fest 2026]",
+  /** A-05: Instagram resmi acara (sudah diberikan panitia). */
+  instagramAccountUrl:
+    "https://www.instagram.com/career_fest_2026?utm_source=ig_web_button_share_sheet&stkn=ZDNlZDc0MzIxNw==",
   /** A-10: link grup WhatsApp panitia. */
   whatsappGroupUrl: "[PLACEHOLDER: link grup WhatsApp]",
   /** A-09: nominal transfer. */

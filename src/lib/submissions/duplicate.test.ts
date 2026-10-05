@@ -17,7 +17,6 @@ function row(
     email: "peserta@email.com",
     whatsappNumber: "081234567890",
     affiliation: "UNISSULA",
-    instagramProfileUrl: "https://instagram.com/peserta",
     instagramFileId: "file-instagram",
     paymentFileId: "file-payment",
     errorCode: "",

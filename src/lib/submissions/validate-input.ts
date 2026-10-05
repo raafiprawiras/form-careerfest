@@ -17,7 +17,6 @@ import {
   validateAffiliation,
   validateEmail,
   validateFullName,
-  validateInstagramProfileUrl,
   validateWhatsapp,
 } from "@/lib/validation";
 import type { SubmissionInput } from "./types";
@@ -28,7 +27,6 @@ export type ServerFieldKey =
   | "email"
   | "whatsapp"
   | "affiliation"
-  | "instagramUrl"
   | "instagramFile"
   | "paymentFile";
 
@@ -42,7 +40,6 @@ export type ServerValidationResult =
         email: string;
         whatsappNumber: string;
         affiliation: "UNISSULA" | "Umum";
-        instagramProfileUrl: string;
       };
       instagramDetected: DetectedFileType;
       paymentDetected: DetectedFileType;
@@ -82,11 +79,6 @@ export function validateServerInput(
 
   const affiliationError = validateAffiliation(input.affiliation);
   if (affiliationError) fields.affiliation = affiliationError;
-
-  const instagramUrlError = validateInstagramProfileUrl(
-    input.instagramProfileUrl,
-  );
-  if (instagramUrlError) fields.instagramUrl = instagramUrlError;
 
   let instagramDetected: DetectedFileType | null = null;
   if (!input.instagramFile) {
@@ -135,7 +127,6 @@ export function validateServerInput(
       email: normalizeEmail(input.email),
       whatsappNumber: normalizeDigits(input.whatsappNumber),
       affiliation: input.affiliation as "UNISSULA" | "Umum",
-      instagramProfileUrl: input.instagramProfileUrl.trim(),
     },
     instagramDetected,
     paymentDetected,

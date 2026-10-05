@@ -102,7 +102,7 @@ export async function processSubmission({
   }
 
   try {
-    const result = await runSubmission(payload);
+    const result = await runSubmission(payload, idempotencyKey);
     idempotencyStore.complete(idempotencyKey, result);
     logServerEvent("submission_succeeded", {
       registration_id: result.registrationId,
@@ -116,9 +116,12 @@ export async function processSubmission({
   }
 }
 
-async function runSubmission(payload: SubmissionInput): Promise<SubmitResult> {
+async function runSubmission(
+  payload: SubmissionInput,
+  idempotencyKey: string,
+): Promise<SubmitResult> {
   if (isAppsScriptConfigured()) {
-    return submitViaAppsScript(payload);
+    return submitViaAppsScript(payload, idempotencyKey);
   }
 
   // Konfigurasi dibaca lebih dulu supaya environment yang belum siap gagal
@@ -176,7 +179,6 @@ async function runSubmission(payload: SubmissionInput): Promise<SubmitResult> {
     email: validation.normalized.email,
     whatsappNumber: validation.normalized.whatsappNumber,
     affiliation: validation.normalized.affiliation,
-    instagramProfileUrl: validation.normalized.instagramProfileUrl,
     instagramFile: null,
     paymentFile: null,
     duplicateFlag: decision.duplicateFlag,
@@ -292,7 +294,10 @@ async function runSubmission(payload: SubmissionInput): Promise<SubmitResult> {
   };
 }
 
-async function submitViaAppsScript(payload: SubmissionInput): Promise<SubmitResult> {
+async function submitViaAppsScript(
+  payload: SubmissionInput,
+  idempotencyKey: string,
+): Promise<SubmitResult> {
   const maxBytes = Number.parseInt(process.env.MAX_UPLOAD_BYTES ?? "5242880", 10);
   const validation = validateServerInput(payload, maxBytes);
   if (!validation.ok) {
@@ -303,7 +308,7 @@ async function submitViaAppsScript(payload: SubmissionInput): Promise<SubmitResu
   }
 
   try {
-    return await submitToAppsScript(payload);
+    return await submitToAppsScript(payload, idempotencyKey);
   } catch (error) {
     const code = error instanceof Error && "code" in error
       ? String((error as { code?: unknown }).code ?? "PROVIDER_ERROR")

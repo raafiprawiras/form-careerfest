@@ -56,7 +56,6 @@ function buildRequest(
   formData.append("email", "siti.rahma@email.com");
   formData.append("whatsapp", "081234567890");
   formData.append("affiliation", "UNISSULA");
-  formData.append("instagramUrl", "https://instagram.com/siti.rahma");
 
   if (withFiles) {
     formData.append(

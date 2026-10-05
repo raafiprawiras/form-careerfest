@@ -17,7 +17,6 @@ export type RegistrationValues = {
   email: string;
   whatsapp: string;
   affiliation: Affiliation | "";
-  instagramUrl: string;
   instagramFile: File | null;
   paymentFile: File | null;
 };
@@ -28,7 +27,6 @@ export const INITIAL_VALUES: RegistrationValues = {
   email: "",
   whatsapp: "",
   affiliation: "",
-  instagramUrl: "",
   instagramFile: null,
   paymentFile: null,
 };

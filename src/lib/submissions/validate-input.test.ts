@@ -11,7 +11,6 @@ const validInput: SubmissionInput = {
   email: " Siti.Rahma@Email.com ",
   whatsappNumber: "+62 812-3456-7890",
   affiliation: "UNISSULA",
-  instagramProfileUrl: "https://instagram.com/siti.rahma",
   instagramFile: PNG,
   paymentFile: PNG,
 };
@@ -51,7 +50,6 @@ describe("validateServerInput", () => {
         email: "",
         whatsappNumber: "",
         affiliation: "",
-        instagramProfileUrl: "",
       },
       MAX,
     );
@@ -62,7 +60,6 @@ describe("validateServerInput", () => {
         "affiliation",
         "email",
         "fullName",
-        "instagramUrl",
         "whatsapp",
       ]);
     }

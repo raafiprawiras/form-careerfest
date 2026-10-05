@@ -24,14 +24,14 @@ import type { RegistrationValues, SlideId } from "@/lib/types";
 import {
   createIdempotencyKey,
   submitRegistration,
-} from "@/lib/submit";import {
+} from "@/lib/submit";
+import {
   normalizeEmail,
   normalizeFullName,
   validateAffiliation,
   validateEmail,
   validateFileMeta,
   validateFullName,
-  validateInstagramProfileUrl,
   validateWhatsapp,
 } from "@/lib/validation";
 
@@ -41,7 +41,6 @@ type FieldKey =
   | "email"
   | "whatsapp"
   | "affiliation"
-  | "instagramUrl"
   | "instagramFile"
   | "paymentFile"
   | "form";
@@ -62,7 +61,6 @@ const SLIDE_INDEX_BY_FIELD: Record<string, number> = {
   email: SLIDE_ORDER.indexOf("identity"),
   whatsapp: SLIDE_ORDER.indexOf("identity"),
   affiliation: SLIDE_ORDER.indexOf("affiliation"),
-  instagramUrl: SLIDE_ORDER.indexOf("instagram_proof"),
   instagramFile: SLIDE_ORDER.indexOf("instagram_proof"),
   paymentFile: SLIDE_ORDER.indexOf("payment_proof"),
 };
@@ -74,7 +72,6 @@ const FIELD_ORDER: FieldKey[] = [
   "email",
   "whatsapp",
   "affiliation",
-  "instagramUrl",
   "instagramFile",
   "paymentFile",
 ];
@@ -133,8 +130,6 @@ export function RegistrationForm() {
         next.affiliation = validateAffiliation(values.affiliation) ?? undefined;
         break;
       case "instagram_proof": {
-        next.instagramUrl =
-          validateInstagramProfileUrl(values.instagramUrl) ?? undefined;
         next.instagramFile = values.instagramFile
           ? validateFileMeta({
               name: values.instagramFile.name,
@@ -320,16 +315,8 @@ export function RegistrationForm() {
 
           {slide === "instagram_proof" ? (
             <InstagramProofSlide
-              instagramUrl={values.instagramUrl}
               instagramFile={values.instagramFile}
-              errors={{
-                instagramUrl: errors.instagramUrl,
-                instagramFile: errors.instagramFile,
-              }}
-              onUrlChange={(instagramUrl) => {
-                patchValues({ instagramUrl });
-                clearError("instagramUrl");
-              }}
+              error={errors.instagramFile ?? null}
               onFileChange={(instagramFile) => {
                 patchValues({ instagramFile });
                 clearError("instagramFile");

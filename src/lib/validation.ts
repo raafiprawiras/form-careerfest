@@ -100,30 +100,6 @@ export function validateAffiliation(value: string): string | null {
   return "Pilih salah satu asal instansi.";
 }
 
-export function validateInstagramProfileUrl(value: string): string | null {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return "Link Instagram wajib diisi.";
-
-  let parsed: URL;
-  try {
-    parsed = new URL(trimmed);
-  } catch {
-    return "Gunakan link profil Instagram, contoh: https://instagram.com/username";
-  }
-
-  if (parsed.protocol !== "https:") {
-    return "Link Instagram harus dimulai dengan https://";
-  }
-  if (!INSTAGRAM_HOSTS.includes(parsed.hostname.toLowerCase())) {
-    return "Domain link Instagram tidak dikenali. Contoh: https://instagram.com/username";
-  }
-  const path = parsed.pathname;
-  if (path === "/" || path.startsWith("/?") || path.startsWith("/#")) {
-    return "Masukkan URL profil Instagram, bukan halaman utama.";
-  }
-  return null;
-}
-
 export function validateFileMeta(file: {
   name: string;
   size: number;
@@ -148,7 +124,6 @@ export type SignupValues = {
   email: string;
   whatsapp: string;
   affiliation: Affiliation | "";
-  instagramUrl: string;
   instagramFileMeta: { name: string; size: number; type: string } | null;
   paymentFileMeta: { name: string; size: number; type: string } | null;
 };
@@ -171,8 +146,6 @@ export function validateAll(values: SignupValues): ValidationResult {
   if (whatsappError) errors.push(whatsappError);
   const affiliationError = validateAffiliation(values.affiliation);
   if (affiliationError) errors.push(affiliationError);
-  const instagramError = validateInstagramProfileUrl(values.instagramUrl);
-  if (instagramError) errors.push(instagramError);
   if (!values.instagramFileMeta) {
     errors.push("Screenshot bukti follow Instagram wajib diunggah.");
   } else {

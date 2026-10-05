@@ -222,7 +222,6 @@ full_name
 email
 whatsapp_number
 affiliation
-instagram_profile_url
 instagram_file_id
 instagram_file_name
 instagram_mime_type
@@ -239,6 +238,12 @@ checked_in_by
 error_code
 notes
 ```
+
+Catatan perubahan: kolom `instagram_profile_url` dihapus. Peserta tidak lagi
+memasukkan link profil Instagram; slide bukti follow menampilkan link resmi
+akun `@career_fest_2026` dan peserta hanya mengunggah screenshot bukti follow.
+Di tampilan Sheet, kolom nama file (`instagram_file_name`, `payment_file_name`)
+dihyperlink otomatis ke file Drive agar verifikasi cukup satu klik.
 
 Status ditetapkan server:
 

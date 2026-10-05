@@ -25,7 +25,6 @@ export type SubmissionRecord = {
   email: string;
   whatsappNumber: string;
   affiliation: Affiliation;
-  instagramProfileUrl: string;
   instagramFile: DriveFileMeta | null;
   paymentFile: DriveFileMeta | null;
   duplicateFlag: "" | "duplicate_whatsapp_suspected";
@@ -47,7 +46,6 @@ export type SubmissionInput = {
   email: string;
   whatsappNumber: string;
   affiliation: string;
-  instagramProfileUrl: string;
   instagramFile: Uint8Array | null;
   paymentFile: Uint8Array | null;
 };

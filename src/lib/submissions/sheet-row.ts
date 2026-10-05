@@ -1,8 +1,9 @@
 /**
  * Struktur satu baris Google Sheets.
  *
- * Urutan kolom mengikuti `docs/FORM-SPECIFICATION.md` bagian 6.6 persis, karena
- * panitia akan memfilter Sheet berdasarkan kolom ini. Jangan menukar urutan
+ * Catatan: kolom `instagram_profile_url` dihapus dari skema (peserta tidak
+ * lagi memasukkan link IG; cukup bukti follow). Urutan kolom lain tetap
+ * mengikuti `docs/FORM-SPECIFICATION.md` bagian 6.6. Jangan menukar urutan
  * tanpa memperbarui dokumen spesifikasi.
  */
 
@@ -17,7 +18,6 @@ export const SHEET_COLUMNS = [
   "email",
   "whatsapp_number",
   "affiliation",
-  "instagram_profile_url",
   "instagram_file_id",
   "instagram_file_name",
   "instagram_mime_type",
@@ -47,7 +47,6 @@ export function buildSheetRow(record: SubmissionRecord): string[] {
     record.email,
     record.whatsappNumber,
     record.affiliation,
-    record.instagramProfileUrl,
     record.instagramFile?.fileId ?? "",
     record.instagramFile?.fileName ?? "",
     record.instagramFile?.mimeType ?? "",
@@ -78,7 +77,6 @@ export type ParsedSheetRow = {
   email: string;
   whatsappNumber: string;
   affiliation?: Affiliation;
-  instagramProfileUrl: string;
   instagramFileId: string;
   paymentFileId: string;
   errorCode: string;
@@ -114,7 +112,6 @@ export function parseSheetRow(row: string[], rowNumber: number): ParsedSheetRow 
       affiliation === "UNISSULA" || affiliation === "Umum"
         ? affiliation
         : undefined,
-    instagramProfileUrl: cell("instagram_profile_url"),
     instagramFileId: cell("instagram_file_id"),
     paymentFileId: cell("payment_file_id"),
     errorCode: cell("error_code"),

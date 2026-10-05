@@ -9,7 +9,6 @@ import {
   validateEmail,
   validateFileMeta,
   validateFullName,
-  validateInstagramProfileUrl,
   validateWhatsapp,
 } from "./validation";
 import type { SignupValues } from "./validation";
@@ -20,7 +19,6 @@ const validValues: SignupValues = {
   email: "siti.rahma@email.com",
   whatsapp: "081234567890",
   affiliation: "UNISSULA",
-  instagramUrl: "https://instagram.com/siti.rahma",
   instagramFileMeta: {
     name: "bukti.png",
     size: 1024,
@@ -112,35 +110,6 @@ describe("validateAffiliation", () => {
   it("menolak nilai lain dan kosong", () => {
     expect(validateAffiliation("umum")).toContain("Pilih salah satu");
     expect(validateAffiliation("")).toContain("Pilih salah satu");
-  });
-});
-
-describe("validateInstagramProfileUrl", () => {
-  it("menerima domain Instagram yang diizinkan", () => {
-    expect(validateInstagramProfileUrl("https://instagram.com/siti.rahma")).toBeNull();
-    expect(validateInstagramProfileUrl("https://www.instagram.com/username/")).toBeNull();
-  });
-
-  it("menolak domain lain", () => {
-    expect(
-      validateInstagramProfileUrl("https://facebook.com/siti.rahma"),
-    ).toContain("Domain link Instagram tidak dikenali");
-  });
-
-  it("menolak URL tanpa skema https", () => {
-    expect(validateInstagramProfileUrl("instagram.com/siti.rahma")).toContain(
-      "https://",
-    );
-  });
-
-  it("menolak hanya halaman utama", () => {
-    expect(validateInstagramProfileUrl("https://instagram.com/")).toContain(
-      "bukan halaman utama",
-    );
-  });
-
-  it("menolak link kosong", () => {
-    expect(validateInstagramProfileUrl("   ")).toBe("Link Instagram wajib diisi.");
   });
 });
 

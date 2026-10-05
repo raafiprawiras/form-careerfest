@@ -15,7 +15,6 @@ const record: SubmissionRecord = {
   email: "siti.rahma@email.com",
   whatsappNumber: "081234567890",
   affiliation: "UNISSULA",
-  instagramProfileUrl: "https://instagram.com/siti.rahma",
   instagramFile: {
     fileId: "drive-instagram-id",
     fileName: "CF2026-7F3K9Q-instagram.png",
@@ -42,17 +41,17 @@ describe("buildSheetRow", () => {
     expect(values[1]).toBe("2026-10-05T10:00:00.000Z");
     expect(values[2]).toBe("submitted");
     expect(values[6]).toBe("UNISSULA");
-    expect(values[11]).toBe("2048");
-    expect(values[15]).toBe("4096");
+    expect(values[10]).toBe("2048");
+    expect(values[14]).toBe("4096");
   });
 
   it("mengisi kolom Milestone 6 dan 7 dengan string kosong, bukan angka", () => {
     const values = buildSheetRow(record);
 
+    expect(values[16]).toBe("");
     expect(values[17]).toBe("");
     expect(values[18]).toBe("");
     expect(values[19]).toBe("");
-    expect(values[20]).toBe("");
   });
 
   it("mengisi sel kosong ketika file belum ada", () => {
@@ -64,9 +63,9 @@ describe("buildSheetRow", () => {
       paymentFile: null,
     });
 
-    expect(values[8]).toBe("");
+    expect(values[7]).toBe("");
     expect(values[11]).toBe("");
-    expect(values[21]).toBe("DRIVE_UPLOAD_FAILED");
+    expect(values[20]).toBe("DRIVE_UPLOAD_FAILED");
   });
 });
 

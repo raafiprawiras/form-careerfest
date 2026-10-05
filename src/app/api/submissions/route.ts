@@ -129,7 +129,6 @@ async function parseSubmissionForm(
     email: text("email"),
     whatsappNumber: text("whatsapp"),
     affiliation: text("affiliation"),
-    instagramProfileUrl: text("instagramUrl"),
     instagramFile: await file("instagram_file"),
     paymentFile: await file("payment_file"),
   };

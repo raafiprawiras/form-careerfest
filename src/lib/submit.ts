@@ -14,7 +14,6 @@ export type FieldErrorKey =
   | "email"
   | "whatsapp"
   | "affiliation"
-  | "instagramUrl"
   | "instagramFile"
   | "paymentFile"
   | "form";
@@ -140,7 +139,6 @@ function buildFormData(values: RegistrationValues): FormData {
   formData.append("email", values.email);
   formData.append("whatsapp", values.whatsapp);
   formData.append("affiliation", values.affiliation);
-  formData.append("instagramUrl", values.instagramUrl);
 
   if (values.instagramFile) {
     formData.append("instagram_file", values.instagramFile);
