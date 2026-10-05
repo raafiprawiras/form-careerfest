@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isAppsScriptConfigured, submitToAppsScript } from "@/lib/apps-script";
 import { createGoogleClients } from "@/lib/google/auth";
 import { ConfigError, getGoogleConfig } from "@/lib/google/config";
 import {
@@ -116,6 +117,10 @@ export async function processSubmission({
 }
 
 async function runSubmission(payload: SubmissionInput): Promise<SubmitResult> {
+  if (isAppsScriptConfigured()) {
+    return submitViaAppsScript(payload);
+  }
+
   // Konfigurasi dibaca lebih dulu supaya environment yang belum siap gagal
   // cepat dengan pesan yang jelas, bukan setengah jalan setelah upload.
   const config = getGoogleConfig();
@@ -285,6 +290,29 @@ async function runSubmission(payload: SubmissionInput): Promise<SubmitResult> {
     registrationId,
     submittedAt,
   };
+}
+
+async function submitViaAppsScript(payload: SubmissionInput): Promise<SubmitResult> {
+  const maxBytes = Number.parseInt(process.env.MAX_UPLOAD_BYTES ?? "5242880", 10);
+  const validation = validateServerInput(payload, maxBytes);
+  if (!validation.ok) {
+    throw new SubmissionRejectedError(
+      ERROR_CODES.VALIDATION_FAILED,
+      validation.fields,
+    );
+  }
+
+  try {
+    return await submitToAppsScript(payload);
+  } catch (error) {
+    const code = error instanceof Error && "code" in error
+      ? String((error as { code?: unknown }).code ?? "PROVIDER_ERROR")
+      : "PROVIDER_ERROR";
+    if (code === ERROR_CODES.DUPLICATE_EMAIL) {
+      throw new SubmissionRejectedError(ERROR_CODES.DUPLICATE_EMAIL);
+    }
+    throw new SubmissionProviderError(ERROR_CODES.PROVIDER_ERROR);
+  }
 }
 
 async function ensureSheetHeader({

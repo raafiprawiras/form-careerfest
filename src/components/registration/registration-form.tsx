@@ -351,19 +351,19 @@ export function RegistrationForm() {
           {slide !== "welcome" ? (
             <div className="flex flex-wrap items-center gap-3">
               <Button
-                type="submit"
-                loading={submitting}
-                disabled={submitting}
-              >
-                {index === LAST_FILLABLE_INDEX ? "Kirim pendaftaran" : "Lanjut"}
-              </Button>
-              <Button
                 type="button"
                 variant="secondary"
                 disabled={submitting}
                 onClick={goBack}
               >
                 Kembali
+              </Button>
+              <Button
+                type="submit"
+                loading={submitting}
+                disabled={submitting}
+              >
+                {index === LAST_FILLABLE_INDEX ? "Kirim pendaftaran" : "Lanjut"}
               </Button>
             </div>
           ) : null}
