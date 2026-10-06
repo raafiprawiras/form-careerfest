@@ -28,6 +28,7 @@ import {
 import {
   normalizeEmail,
   normalizeFullName,
+  normalizeWhatsapp,
   validateAffiliation,
   validateEmail,
   validateFileMeta,
@@ -83,6 +84,7 @@ export function RegistrationForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submittedRegistrationId, setSubmittedRegistrationId] = useState("");
   const [submittedAt, setSubmittedAt] = useState("");
+  const [submittedWhatsapp, setSubmittedWhatsapp] = useState("");
 
   // Kunci dibuat satu kali per sesi form (spesifikasi 6.1: server menolak
   // request kedua dengan kunci yang sama).
@@ -184,11 +186,18 @@ export function RegistrationForm() {
     clearError("form");
 
     try {
-      const outcome = await submitRegistration(values, idempotencyKey);
+      // Nomor WhatsApp dinormalkan ke format `08...` sebelum dikirim dan
+      // ditampilkan agar konsisten dengan kolom Sheets.
+      const whatsapp = normalizeWhatsapp(values.whatsapp);
+      const outcome = await submitRegistration(
+        { ...values, whatsapp },
+        idempotencyKey,
+      );
 
       if (outcome.status === "submitted") {
         setSubmittedRegistrationId(outcome.registrationId);
         setSubmittedAt(outcome.submittedAt);
+        setSubmittedWhatsapp(whatsapp);
         setIndex(SLIDE_ORDER.length - 1);
         return;
       }
@@ -255,7 +264,7 @@ export function RegistrationForm() {
         <SuccessSlide
           fullName={normalizeFullName(values.fullName)}
           email={normalizeEmail(values.email)}
-          whatsapp={values.whatsapp}
+          whatsapp={submittedWhatsapp ?? values.whatsapp}
           registrationId={submittedRegistrationId}
           submittedAt={submittedAt}
           onDone={() => {

@@ -47,13 +47,17 @@ export function normalizeEmail(value: string): string {
 }
 
 /**
- * Menormalkan nomor WhatsApp menjadi digit saja.
- * Awalan `62` dipetakan ke `0` agar konsisten dengan kolom Sheets.
+ * Menormalkan nomor WhatsApp menjadi digit dengan awalan `08`.
+ * `62` dipetakan ke `0`, dan angka yang diawali `8` (tanpa nol) otomatis
+ * diberi awalan `0` — hasil selalu berformat `08...`.
  */
 export function normalizeWhatsapp(value: string): string {
   const digits = value.replace(/\D/g, "");
-  if (digits.length >= 11 && digits.startsWith("62")) {
+  if (digits.startsWith("62")) {
     return `0${digits.slice(2)}`;
+  }
+  if (digits.length > 0 && !digits.startsWith("0")) {
+    return `0${digits}`;
   }
   return digits;
 }

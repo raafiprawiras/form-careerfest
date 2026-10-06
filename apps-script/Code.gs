@@ -165,7 +165,9 @@ function validateInput(body) {
 
 function normalizeWhatsapp(value) {
   var digits = value.replace(/\D/g, "");
-  return digits.indexOf("62") === 0 ? "0" + digits.substring(2) : digits;
+  if (digits.indexOf("62") === 0) return "0" + digits.substring(2);
+  if (digits.length > 0 && digits.indexOf("0") !== 0) return "0" + digits;
+  return digits;
 }
 
 function validateFile(file) {
@@ -262,10 +264,10 @@ function json(value) { return ContentService.createTextOutput(JSON.stringify(val
 function formatOnceIfEnabled(sheet) {
   try {
     var props = PropertiesService.getScriptProperties();
-    // V2: skema kolom baru tanpa instagram_profile_url.
-    if (props.getProperty("CF_FORMAT_V2")) return;
+    // V3: kolom WhatsApp berformat teks (awalan 08 aman).
+    if (props.getProperty("CF_FORMAT_V3")) return;
     applySheetFormatting(sheet || getSheet());
-    props.setProperty("CF_FORMAT_V2", "1");
+    props.setProperty("CF_FORMAT_V3", "1");
   } catch (ignored) {
     // Kegagalan formatting tidak boleh menggagalkan request utama.
   }
@@ -274,10 +276,10 @@ function formatOnceIfEnabled(sheet) {
 /** Paksa format ulang: jalankan dari editor Apps Script. */
 function reformatSheet() {
   var props = PropertiesService.getScriptProperties();
-  props.deleteProperty("CF_FORMAT_V2");
+  props.deleteProperty("CF_FORMAT_V3");
   var sheet = getSheet();
   applySheetFormatting(sheet);
-  props.setProperty("CF_FORMAT_V2", "1");
+  props.setProperty("CF_FORMAT_V3", "1");
   formatAllExistingRows();
 }
 
@@ -353,6 +355,10 @@ function applySheetFormatting(sheet) {
   // Font tubuh tabel.
   sheet.getRange(2, 1, sheet.getMaxRows() - 1, HEADERS.length)
     .setFontFamily("Google Sans").setFontSize(10);
+
+  // Kolom F (whatsapp_number) dipaksa teks agar awalan `08` tidak hilang
+  // karena konversi angka otomatis Google Sheets.
+  sheet.getRange(2, 6, sheet.getMaxRows() - 1, 1).setNumberFormat("@");
 
   // Sembunyikan kolom teknis/lanjutan; data tetap tersimpan.
   // Disembunyikan: instagram_file_id, mime/size instagram, payment_file_id,

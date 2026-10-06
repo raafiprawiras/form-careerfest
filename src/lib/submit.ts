@@ -8,6 +8,7 @@
 
 import type { RegistrationValues } from "./types";
 import { NETWORK_ERROR_MESSAGE } from "@/lib/submissions/errors";
+import { compressForUpload } from "@/lib/compress-image";
 export type FieldErrorKey =
   | "consent"
   | "fullName"
@@ -75,7 +76,7 @@ export async function submitRegistration(
       headers: {
         "x-idempotency-key": idempotencyKey,
       },
-      body: buildFormData(values),
+      body: await buildFormData(values),
     });
   } catch {
     return {
@@ -131,7 +132,7 @@ export async function submitRegistration(
   };
 }
 
-function buildFormData(values: RegistrationValues): FormData {
+async function buildFormData(values: RegistrationValues): Promise<FormData> {
   const formData = new FormData();
 
   formData.append("consent", values.consent ? "true" : "false");
@@ -141,10 +142,11 @@ function buildFormData(values: RegistrationValues): FormData {
   formData.append("affiliation", values.affiliation);
 
   if (values.instagramFile) {
-    formData.append("instagram_file", values.instagramFile);
+    // Kompresi di browser memangkas waktu upload screenshot berukuran besar.
+    formData.append("instagram_file", await compressForUpload(values.instagramFile));
   }
   if (values.paymentFile) {
-    formData.append("payment_file", values.paymentFile);
+    formData.append("payment_file", await compressForUpload(values.paymentFile));
   }
 
   return formData;

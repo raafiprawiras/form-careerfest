@@ -17,14 +17,14 @@ export const PENDING_CONTENT = {
   /** A-05: Instagram resmi acara (sudah diberikan panitia). */
   instagramAccountUrl:
     "https://www.instagram.com/career_fest_2026?utm_source=ig_web_button_share_sheet&stkn=ZDNlZDc0MzIxNw==",
-  /** A-10: link grup WhatsApp panitia. */
-  whatsappGroupUrl: "[PLACEHOLDER: link grup WhatsApp]",
-  /** A-09: nominal transfer. */
-  transferAmount: "[PLACEHOLDER: nominal transfer]",
-  /** A-09: rekening tujuan. */
-  bankAccount: "[PLACEHOLDER: rekening tujuan]",
-  /** A-09: pemilik rekening tujuan. */
-  bankAccountName: "[PLACEHOLDER: nama pemilik rekening]",
+  /** A-10: link grup WhatsApp resmi panitia (sudah diberikan panitia). */
+  whatsappGroupUrl: "https://chat.whatsapp.com/IJWEzCo1E0cBGXx6NDuTTG",
+  /** A-09: nominal transfer (sudah diberikan panitia). */
+  transferAmount: "Rp20.000",
+  /** A-09: rekening tujuan (sudah diberikan panitia). */
+  bankAccount: "BRI 586801071890530",
+  /** A-09: pemilik rekening tujuan (sudah diberikan panitia). */
+  bankAccountName: "Ilza Mulkhoiroh",
   /** A-02: kontak panitia koreksi data. */
   committeeContact: "[PLACEHOLDER: kontak panitia]",
 } as const;

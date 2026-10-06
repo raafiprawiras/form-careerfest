@@ -46,6 +46,12 @@ describe("normalisasi", () => {
     expect(normalizeWhatsapp("+62 812-3456-7890")).toBe("081234567890");
     expect(normalizeWhatsapp("0812abc3456oo7890")).toBe("081234567890");
   });
+
+  it("selalu menghasilkan awalan 08", () => {
+    expect(normalizeWhatsapp("89776252162")).toBe("089776252162");
+    expect(normalizeWhatsapp("6289776252162")).toBe("089776252162");
+    expect(normalizeWhatsapp("+62 897-7625-2162")).toBe("089776252162");
+  });
 });
 
 describe("validateFullName", () => {

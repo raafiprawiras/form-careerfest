@@ -144,8 +144,11 @@ function normalizeEmail(value: string): string {
 
 function normalizeDigits(value: string): string {
   const digits = value.replace(/\D/g, "");
-  if (digits.length >= 11 && digits.startsWith("62")) {
+  if (digits.startsWith("62")) {
     return `0${digits.slice(2)}`;
+  }
+  if (digits.length > 0 && !digits.startsWith("0")) {
+    return `0${digits}`;
   }
   return digits;
 }
