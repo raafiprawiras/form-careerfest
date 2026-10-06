@@ -33,7 +33,7 @@ export function IdentitySlide({
           error={errors.fullName}
           autoFocusOnSlide
           autoComplete="name"
-          placeholder="Contoh: Siti Rahma Wulandari"
+          placeholder="Contoh: Muhammad Fajrul Falach"
         />
         <TextField
           id="email"
@@ -44,8 +44,8 @@ export function IdentitySlide({
           onChange={(event) => onChange({ email: event.target.value })}
           error={errors.email}
           autoComplete="email"
-          placeholder="Contoh: siti.rahma@email.com"
-          helper="QR Code absensi akan dikirim ke email ini."
+          placeholder="Contoh: falach123@gmail.com"
+          helper="Wajib isi dengan email aktif. QR Code absensi akan dikirim ke email ini."
         />
         <TextField
           id="whatsapp"
@@ -56,7 +56,7 @@ export function IdentitySlide({
           onChange={(event) => onChange({ whatsapp: event.target.value })}
           error={errors.whatsapp}
           autoComplete="tel"
-          placeholder="Contoh: 081234567890"
+          placeholder="Contoh: 08XXXXXXXXXX"
           helper="Boleh memakai awalan 62, akan disimpan sebagai 0."
         />
       </div>
