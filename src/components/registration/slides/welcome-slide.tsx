@@ -1,13 +1,19 @@
+import Image from "next/image";
 import { Button } from "@/components/registration/ui";
 
 export function WelcomeSlide({ onStart }: { onStart: () => void }) {
   return (
     <section className="flex flex-1 flex-col gap-6">
       <div className="flex flex-col gap-4">
-        {/* A-08: logo acara belum tersedia, tampil sebagai slot placeholder. */}
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary text-sm font-semibold text-primary-ink">
-          Logo
-        </div>
+        {/* Logo asli berlatar gelap, jadi ditampilkan sebagai ubin bersudut bulat. */}
+        <Image
+          src="/logo-careerfest.png"
+          alt="Logo Career Fest 2026"
+          width={480}
+          height={668}
+          priority
+          className="h-28 w-auto self-start rounded-2xl"
+        />
         <h1 className="text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
           Registrasi Career Fest 2026
         </h1>

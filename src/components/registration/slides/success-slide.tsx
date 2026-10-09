@@ -69,6 +69,10 @@ export function SuccessSlide({
 
       <ul className="flex flex-col gap-2 text-base text-ink-muted">
         <li>
+          QR Code absensi dikirim otomatis ke email Anda dalam beberapa menit.
+          Jika belum masuk, periksa folder Spam atau Promosi.
+        </li>
+        <li>
           QR Code absensi bersifat pribadi dan tidak boleh disebarkan kepada
           pihak lain.
         </li>

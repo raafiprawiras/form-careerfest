@@ -12,7 +12,20 @@
  *   GOOGLE_DRIVE_FOLDER_ID - ID folder Drive tujuan upload
  *   GOOGLE_SHEETS_NAME     - nama tab (opsional, default: Registrations)
  *
+ * Script Properties tambahan untuk QR + absensi:
+ *   CHECKIN_BASE_URL       - alamat website form TANPA garis miring di akhir,
+ *                            contoh: https://careerfest.vercel.app
+ *   CHECKIN_PIN            - PIN rahasia panitia untuk scan (min. 6 karakter)
+ *   WA_GROUP_URL           - (opsional) link grup WA di email
+ *   EVENT_NAME             - (opsional) default: Career Fest 2026
+ *   EVENT_INFO             - (opsional) teks tanggal/lokasi di email
+ *   QR_SIGNING_SECRET      - (opsional) kunci tanda tangan QR; kalau kosong
+ *                            memakai CAREERFEST_API_SECRET. JANGAN diganti
+ *                            setelah email QR terkirim, QR lama jadi tidak valid.
+ *
  * Fungsi utilitas yang bisa dijalankan manual dari editor:
+ *   testSendQrToMe        - kirim email QR contoh ke akun pemilik script
+ *   sendPendingQr         - kirim email QR ke peserta yang belum menerimanya
  *   reformatSheet         - paksa format ulang seluruh tampilan Sheet
  *   formatAllExistingRows - beri link Drive + warna untuk semua baris lama
  */
@@ -34,6 +47,15 @@ var HEADERS = [
 ];
 var ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 
+// Nomor kolom (mulai 1) berdasarkan nama header, supaya tidak salah hitung.
+var COL = {};
+for (var ci = 0; ci < HEADERS.length; ci++) COL[HEADERS[ci]] = ci + 1;
+
+var DEFAULT_WA_GROUP = "https://chat.whatsapp.com/KImqUyLgRY6KBggOAl22y0";
+var DEFAULT_EVENT_NAME = "Career Fest 2026";
+var MAX_PIN_FAILS = 10;      // percobaan PIN salah per pengirim
+var PIN_FAIL_WINDOW_S = 600; // dalam 10 menit
+
 // Warna tema Peacock Feather (selaras dengan form).
 var COLOR_HEADER_BG = "#4d52b4";
 var COLOR_HEADER_FG = "#ffffff";
@@ -51,71 +73,11 @@ function doGet() {
 
 function doPost(e) {
   var uploadedIds = [];
-  var cache = CacheService.getScriptCache();
   try {
     var body = parseBody(e);
     requireSecret(body.secret);
-
-    // Idempotency: kunci sama mengembalikan hasil yang sama, sehingga retry
-    // yang responsnya sempat hilang tidak membuat peserta bingung.
-    var idempotencyKey = String(body.idempotencyKey || "").slice(0, 200);
-    if (idempotencyKey) {
-      var cached = cache.get("idem:" + idempotencyKey);
-      if (cached) return json(JSON.parse(cached));
-    }
-
-    var input = validateInput(body);
-    var lock = LockService.getScriptLock();
-    lock.waitLock(10000);
-    try {
-      var sheet = getSheet();
-      ensureHeaders(sheet);
-      formatOnceIfEnabled(sheet);
-      var rows = sheet.getDataRange().getValues();
-      var duplicate = findDuplicate(rows, input.email, input.whatsappNumber);
-      if (duplicate.emailRow && duplicate.emailRow.status === "submitted") {
-        return json({ status: "error", code: "DUPLICATE_EMAIL", retryable: false });
-      }
-
-      var registrationId = duplicate.emailRow
-        ? duplicate.emailRow.registrationId
-        : createRegistrationId(rows);
-      var submittedAt = new Date().toISOString();
-      var instagram = uploadFile(input.instagramFile, registrationId, "instagram");
-      uploadedIds.push(instagram.id);
-      var payment;
-      try {
-        payment = uploadFile(input.paymentFile, registrationId, "payment");
-        uploadedIds.push(payment.id);
-      } catch (paymentError) {
-        cleanup(uploadedIds);
-        throw providerError("DRIVE_UPLOAD_FAILED");
-      }
-
-      var row = [
-        registrationId, submittedAt, "submitted", input.fullName, input.email,
-        input.whatsappNumber, input.affiliation,
-        instagram.id, instagram.name, instagram.mimeType, instagram.size,
-        payment.id, payment.name, payment.mimeType, payment.size,
-        duplicate.whatsappRow ? "duplicate_whatsapp_suspected" : "",
-        "", "", "", "", "", ""
-      ];
-      var rowNumber;
-      if (duplicate.emailRow) {
-        rowNumber = duplicate.emailRow.row;
-        sheet.getRange(rowNumber, 1, 1, HEADERS.length).setValues([row]);
-      } else {
-        sheet.appendRow(row);
-        rowNumber = sheet.getLastRow();
-      }
-      formatRow(sheet, rowNumber, row);
-
-      var result = { status: "submitted", registration_id: registrationId, submitted_at: submittedAt };
-      if (idempotencyKey) cache.put("idem:" + idempotencyKey, JSON.stringify(result), 21600);
-      return json(result);
-    } finally {
-      lock.releaseLock();
-    }
+    if (body.action === "checkin") return handleCheckin(body);
+    return handleRegistration(body, uploadedIds);
   } catch (error) {
     if (error && error.code === "DUPLICATE_EMAIL") {
       return json({ status: "error", code: error.code, retryable: false });
@@ -126,6 +88,203 @@ function doPost(e) {
     try { detail = String(error && error.message ? error.message : "").slice(0, 200); } catch (ignored) {}
     return json({ status: "error", code: error && error.code ? error.code : "PROVIDER_ERROR", retryable: true, detail: detail });
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Pendaftaran                                                         */
+/* ------------------------------------------------------------------ */
+
+function handleRegistration(body, uploadedIds) {
+  var cache = CacheService.getScriptCache();
+
+  // Idempotency: kunci sama mengembalikan hasil yang sama, sehingga retry
+  // yang responsnya sempat hilang tidak membuat peserta bingung.
+  var idempotencyKey = String(body.idempotencyKey || "").slice(0, 200);
+  if (idempotencyKey) {
+    var cached = cache.get("idem:" + idempotencyKey);
+    if (cached) return json(JSON.parse(cached));
+  }
+
+  var input = validateInput(body);
+  var result;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sheet = getSheet();
+    ensureHeaders(sheet);
+    formatOnceIfEnabled(sheet);
+    var rows = sheet.getDataRange().getValues();
+    var duplicate = findDuplicate(rows, input.email, input.whatsappNumber);
+    if (duplicate.emailRow && duplicate.emailRow.status === "submitted") {
+      return json({ status: "error", code: "DUPLICATE_EMAIL", retryable: false });
+    }
+
+    var registrationId = duplicate.emailRow
+      ? duplicate.emailRow.registrationId
+      : createRegistrationId(rows);
+    var submittedAt = new Date().toISOString();
+    var instagram = uploadFile(input.instagramFile, registrationId, "instagram");
+    uploadedIds.push(instagram.id);
+    var payment;
+    try {
+      payment = uploadFile(input.paymentFile, registrationId, "payment");
+      uploadedIds.push(payment.id);
+    } catch (paymentError) {
+      cleanup(uploadedIds);
+      throw providerError("DRIVE_UPLOAD_FAILED");
+    }
+
+    var row = [
+      registrationId, submittedAt, "submitted", input.fullName, input.email,
+      input.whatsappNumber, input.affiliation,
+      instagram.id, instagram.name, instagram.mimeType, instagram.size,
+      payment.id, payment.name, payment.mimeType, payment.size,
+      duplicate.whatsappRow ? "duplicate_whatsapp_suspected" : "",
+      "", "", "", "", "", ""
+    ];
+    var rowNumber;
+    if (duplicate.emailRow) {
+      rowNumber = duplicate.emailRow.row;
+      sheet.getRange(rowNumber, 1, 1, HEADERS.length).setValues([row]);
+    } else {
+      sheet.appendRow(row);
+      rowNumber = sheet.getLastRow();
+    }
+    formatRow(sheet, rowNumber, row);
+
+    result = { status: "submitted", registration_id: registrationId, submitted_at: submittedAt };
+  } finally {
+    lock.releaseLock();
+  }
+
+  if (idempotencyKey) cache.put("idem:" + idempotencyKey, JSON.stringify(result), 21600);
+
+  // Email QR dikirim SETELAH lock dilepas (supaya pendaftar lain tidak antre)
+  // dan kegagalannya tidak boleh membatalkan pendaftaran yang sudah tersimpan.
+  try {
+    deliverQr(result.registration_id);
+  } catch (mailError) {
+    Logger.log("deliverQr gagal: " + mailError);
+  }
+  return json(result);
+}
+
+/* ------------------------------------------------------------------ */
+/* Absensi: panitia memindai QR dengan kamera HP biasa                 */
+/* ------------------------------------------------------------------ */
+
+function handleCheckin(body) {
+  var cache = CacheService.getScriptCache();
+
+  // Kirim ulang karena jaringan putus -> hasil yang sama, bukan "sudah dipakai".
+  var scanId = String(body.scanId || "").slice(0, 100);
+  if (scanId) {
+    var cached = cache.get("scan:" + scanId);
+    if (cached) return json(JSON.parse(cached));
+  }
+
+  // Batasi tebak-tebak PIN: 10 kali salah / 10 menit per pengirim.
+  var clientKey = String(body.clientKey || "unknown").replace(/[^a-zA-Z0-9]/g, "").slice(0, 32) || "unknown";
+  var failKey = "pinfail:" + clientKey;
+  var fails = Number(cache.get(failKey) || 0);
+  if (fails >= MAX_PIN_FAILS) return json({ status: "error", code: "RATE_LIMITED" });
+
+  var expectedPin = PropertiesService.getScriptProperties().getProperty("CHECKIN_PIN");
+  if (!expectedPin) return json({ status: "error", code: "CONFIG_ERROR" });
+  if (!safeEqual(String(body.pin || ""), expectedPin)) {
+    cache.put(failKey, String(fails + 1), PIN_FAIL_WINDOW_S);
+    return json({ status: "error", code: "INVALID_PIN" });
+  }
+
+  var registrationId = parseQrToken(String(body.token || "").trim());
+  if (!registrationId) return finishScan(cache, scanId, { status: "error", code: "INVALID_QR" });
+
+  var scanner = cleanScannerName(body.scannerName);
+  var result;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sheet = getSheet();
+    var rowNumber = findRowById(sheet, registrationId);
+    if (!rowNumber) {
+      result = { status: "error", code: "NOT_FOUND" };
+    } else {
+      var row = sheet.getRange(rowNumber, 1, 1, HEADERS.length).getValues()[0];
+      var fullName = String(row[COL.full_name - 1]);
+      if (String(row[COL.status - 1]) !== "submitted") {
+        result = { status: "error", code: "NOT_ELIGIBLE", registration_id: registrationId };
+      } else if (String(row[COL.attendance_status - 1]).toLowerCase() === "hadir") {
+        result = {
+          status: "error", code: "ALREADY_USED", registration_id: registrationId,
+          full_name: fullName,
+          checked_in_at: toIso(row[COL.checked_in_at - 1]),
+          checked_in_by: String(row[COL.checked_in_by - 1] || "")
+        };
+      } else {
+        var now = new Date();
+        sheet.getRange(rowNumber, COL.attendance_status, 1, 3).setValues([["hadir", now, scanner]]);
+        sheet.getRange(rowNumber, COL.checked_in_at).setNumberFormat("yyyy-mm-dd hh:mm:ss");
+        SpreadsheetApp.flush();
+        result = {
+          status: "checked_in", registration_id: registrationId, full_name: fullName,
+          affiliation: String(row[COL.affiliation - 1]), checked_in_at: now.toISOString()
+        };
+      }
+    }
+  } finally {
+    lock.releaseLock();
+  }
+  return finishScan(cache, scanId, result);
+}
+
+function finishScan(cache, scanId, result) {
+  if (scanId) cache.put("scan:" + scanId, JSON.stringify(result), 21600);
+  return json(result);
+}
+
+function cleanScannerName(value) {
+  // Buang awalan = + - @ agar nama tidak dibaca Sheets sebagai rumus.
+  var name = String(value || "").replace(/^[=+\-@\s]+/, "").slice(0, 60);
+  return name || "Panitia";
+}
+
+function toIso(value) {
+  if (value instanceof Date) return value.toISOString();
+  return String(value || "");
+}
+
+/* ------------------------------------------------------------------ */
+/* QR token (ditandatangani HMAC, tidak bisa ditebak / dipalsukan)     */
+/* ------------------------------------------------------------------ */
+
+function qrSignature(registrationId) {
+  var props = PropertiesService.getScriptProperties();
+  var key = props.getProperty("QR_SIGNING_SECRET") || props.getProperty("CAREERFEST_API_SECRET");
+  if (!key) throw providerError("CONFIG_ERROR");
+  var bytes = Utilities.computeHmacSha256Signature("careerfest-qr-v1:" + registrationId, key);
+  var hex = "";
+  for (var i = 0; i < bytes.length; i++) hex += ("0" + (bytes[i] & 0xFF).toString(16)).slice(-2);
+  return hex.substring(0, 20);
+}
+
+function makeQrToken(registrationId) {
+  return registrationId + "." + qrSignature(registrationId);
+}
+
+/** Mengembalikan registration ID bila token sah, selain itu null. */
+function parseQrToken(token) {
+  var match = /^(CF2026-[A-Z0-9]{6})\.([0-9a-f]{20})$/.exec(token);
+  if (!match) return null;
+  if (!safeEqual(match[2], qrSignature(match[1]))) return null;
+  return match[1];
+}
+
+function safeEqual(a, b) {
+  a = String(a); b = String(b);
+  if (a.length !== b.length) return false;
+  var diff = 0;
+  for (var i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -152,7 +311,10 @@ function validateInput(body) {
     affiliation: text("affiliation"),
     instagramFile: body.instagramFile, paymentFile: body.paymentFile
   };
+  // Buang awalan = + - @ pada nama agar tidak dibaca Sheets sebagai rumus.
+  input.fullName = input.fullName.replace(/^[=+\-@\s]+/, "");
   if (body.consent !== true || input.fullName.length < 3 || input.fullName.length > 100 ||
+      /^[=+\-@]/.test(input.email) ||
       !/^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/.test(input.email) ||
       !/^\d{9,15}$/.test(input.whatsappNumber) ||
       (input.affiliation !== "UNISSULA" && input.affiliation !== "Umum")) {
@@ -264,10 +426,10 @@ function json(value) { return ContentService.createTextOutput(JSON.stringify(val
 function formatOnceIfEnabled(sheet) {
   try {
     var props = PropertiesService.getScriptProperties();
-    // V3: kolom WhatsApp berformat teks (awalan 08 aman).
-    if (props.getProperty("CF_FORMAT_V3")) return;
+    // V4: kolom absensi (Q-T) ditampilkan + warna status QR / hadir.
+    if (props.getProperty("CF_FORMAT_V4")) return;
     applySheetFormatting(sheet || getSheet());
-    props.setProperty("CF_FORMAT_V3", "1");
+    props.setProperty("CF_FORMAT_V4", "1");
   } catch (ignored) {
     // Kegagalan formatting tidak boleh menggagalkan request utama.
   }
@@ -276,10 +438,10 @@ function formatOnceIfEnabled(sheet) {
 /** Paksa format ulang: jalankan dari editor Apps Script. */
 function reformatSheet() {
   var props = PropertiesService.getScriptProperties();
-  props.deleteProperty("CF_FORMAT_V3");
+  props.deleteProperty("CF_FORMAT_V4");
   var sheet = getSheet();
   applySheetFormatting(sheet);
-  props.setProperty("CF_FORMAT_V3", "1");
+  props.setProperty("CF_FORMAT_V4", "1");
   formatAllExistingRows();
 }
 
@@ -365,7 +527,9 @@ function applySheetFormatting(sheet) {
   // mime/size payment, barcode_status, kolom absensi partner, error_code.
   // Kolom terlihat: data peserta (A-G), nama file IG (I), nama file transfer
   // (M) sebagai link Drive, flag duplikat (P), dan notes (V).
-  var hidden = [8, 10, 11, 12, 14, 15, 17, 18, 19, 20, 21];
+  // Kolom QR/absensi (17-20) sekarang DITAMPILKAN agar panitia bisa memantau.
+  try { sheet.showColumns(COL.barcode_status, 4); } catch (ignored) {}
+  var hidden = [8, 10, 11, 12, 14, 15, 21];
   for (var h = 0; h < hidden.length; h++) {
     try { sheet.hideColumns(hidden[h]); } catch (ignored) {}
   }
@@ -373,6 +537,8 @@ function applySheetFormatting(sheet) {
   // Conditional formatting untuk status dan flag duplikat.
   var statusRange = sheet.getRange(2, 3, sheet.getMaxRows() - 1, 1);
   var flagRange = sheet.getRange(2, 16, sheet.getMaxRows() - 1, 1);
+  var barcodeRange = sheet.getRange(2, COL.barcode_status, sheet.getMaxRows() - 1, 1);
+  var attendRange = sheet.getRange(2, COL.attendance_status, sheet.getMaxRows() - 1, 1);
   sheet.setConditionalFormatRules([
     SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo("submitted")
       .setBackground(COLOR_SUBMITTED).setRanges([statusRange]).build(),
@@ -381,6 +547,183 @@ function applySheetFormatting(sheet) {
     SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo("draft")
       .setBackground(COLOR_DRAFT).setRanges([statusRange]).build(),
     SpreadsheetApp.newConditionalFormatRule().whenTextContains("duplicate_whatsapp")
-      .setBackground(COLOR_FLAG).setRanges([flagRange]).build()
+      .setBackground(COLOR_FLAG).setRanges([flagRange]).build(),
+    SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo("sent")
+      .setBackground(COLOR_SUBMITTED).setRanges([barcodeRange]).build(),
+    SpreadsheetApp.newConditionalFormatRule().whenTextStartsWith("failed")
+      .setBackground(COLOR_FAILED).setRanges([barcodeRange]).build(),
+    SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo("hadir")
+      .setBackground(COLOR_SUBMITTED).setBold(true).setRanges([attendRange]).build()
   ]);
+}
+
+/* ------------------------------------------------------------------ */
+/* Email QR                                                            */
+/* ------------------------------------------------------------------ */
+
+function findRowById(sheet, registrationId) {
+  var last = sheet.getLastRow();
+  if (last < 2) return 0;
+  var ids = sheet.getRange(1, 1, last, 1).getValues();
+  for (var i = 1; i < ids.length; i++) {
+    if (String(ids[i][0]) === registrationId) return i + 1;
+  }
+  return 0;
+}
+
+function optionalProperty(name) {
+  return PropertiesService.getScriptProperties().getProperty(name) || "";
+}
+
+/** Kirim email QR untuk satu pendaftar lalu catat hasilnya di kolom barcode_status. */
+function deliverQr(registrationId) {
+  var sheet = getSheet();
+  var rowNumber = findRowById(sheet, registrationId);
+  if (!rowNumber) return;
+  var row = sheet.getRange(rowNumber, 1, 1, HEADERS.length).getValues()[0];
+  if (String(row[COL.status - 1]) !== "submitted") return;
+
+  var outcome = sendQrEmail(String(row[0]), String(row[COL.full_name - 1]), String(row[COL.email - 1]));
+
+  var target = findRowById(sheet, registrationId) || rowNumber;
+  sheet.getRange(target, COL.barcode_status).setValue(outcome.status);
+  if (outcome.note) {
+    var notesCell = sheet.getRange(target, COL.notes);
+    var existing = String(notesCell.getValue() || "");
+    notesCell.setValue(existing ? existing + "; " + outcome.note : outcome.note);
+  }
+}
+
+/** Mengembalikan { status: "sent" | "failed:...", note? }. Tidak pernah melempar error. */
+function sendQrEmail(registrationId, fullName, email) {
+  var base = optionalProperty("CHECKIN_BASE_URL").replace(/\/+$/, "");
+  if (!base) return { status: "failed:config", note: "CHECKIN_BASE_URL belum diisi" };
+
+  var scanUrl = base + "/scan?t=" + encodeURIComponent(makeQrToken(registrationId));
+  var qrBlob = fetchQrBlob(scanUrl, registrationId + "-qr.png");
+  if (!qrBlob) return { status: "failed:qr", note: "gagal membuat gambar QR" };
+
+  try {
+    if (MailApp.getRemainingDailyQuota() < 1) {
+      return { status: "failed:quota", note: "kuota email harian habis" };
+    }
+  } catch (ignored) {}
+
+  var eventName = optionalProperty("EVENT_NAME") || DEFAULT_EVENT_NAME;
+  var content = buildQrEmail({
+    registrationId: registrationId, fullName: fullName, eventName: eventName,
+    eventInfo: optionalProperty("EVENT_INFO"),
+    waGroup: optionalProperty("WA_GROUP_URL") || DEFAULT_WA_GROUP,
+    logoUrl: base + "/logo-careerfest.png"
+  });
+
+  try {
+    MailApp.sendEmail({
+      to: email,
+      subject: "QR Absensi " + eventName + " - " + registrationId,
+      body: content.text,
+      htmlBody: content.html,
+      name: eventName,
+      inlineImages: { qrcode: qrBlob }
+    });
+  } catch (error) {
+    return { status: "failed:mail", note: String(error && error.message ? error.message : error).slice(0, 150) };
+  }
+  return { status: "sent" };
+}
+
+/** Membuat gambar QR lewat layanan gratis; mencoba penyedia kedua bila yang pertama gagal. */
+function fetchQrBlob(text, fileName) {
+  var encoded = encodeURIComponent(text);
+  var urls = [
+    "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=12&ecc=M&format=png&data=" + encoded,
+    "https://quickchart.io/qr?size=400&margin=2&ecc=M&format=png&text=" + encoded
+  ];
+  for (var i = 0; i < urls.length; i++) {
+    try {
+      var response = UrlFetchApp.fetch(urls[i], { muteHttpExceptions: true });
+      if (response.getResponseCode() !== 200) continue;
+      var blob = response.getBlob();
+      if (String(blob.getContentType()).indexOf("image/") !== 0) continue;
+      return blob.setName(fileName);
+    } catch (ignored) {}
+  }
+  return null;
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function buildQrEmail(d) {
+  var name = escapeHtml(d.fullName);
+  var event = escapeHtml(d.eventName);
+  var info = d.eventInfo ? '<p style="margin:0 0 16px;font-size:15px;line-height:1.5"><strong>Waktu &amp; tempat:</strong><br>' + escapeHtml(d.eventInfo) + '</p>' : "";
+
+  var html =
+    '<div style="background:#e1edd4;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;color:#19344a">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden">' +
+    '<tr><td style="background:#0b0e14;padding:20px;text-align:center">' +
+    '<img src="' + escapeHtml(d.logoUrl) + '" alt="' + event + '" height="84" style="height:84px;width:auto;border:0">' +
+    '</td></tr>' +
+    '<tr><td style="padding:24px">' +
+    '<h1 style="margin:0 0 12px;font-size:20px;line-height:1.3">Pendaftaran berhasil, ' + name + '</h1>' +
+    '<p style="margin:0 0 16px;font-size:15px;line-height:1.5">Berikut QR Code absensi Anda untuk ' + event + '. Tunjukkan QR ini kepada panitia saat tiba di lokasi acara.</p>' +
+    '<p style="margin:0 0 4px;text-align:center"><img src="cid:qrcode" alt="QR Code absensi" width="260" height="260" style="width:260px;height:260px;border:0"></p>' +
+    '<p style="margin:0 0 20px;text-align:center;font-family:Courier New,monospace;font-size:16px;letter-spacing:1px">' + escapeHtml(d.registrationId) + '</p>' +
+    info +
+    '<ul style="margin:0 0 20px;padding-left:20px;font-size:14px;line-height:1.6">' +
+    '<li>QR ini bersifat pribadi. Jangan dibagikan atau diunggah ke media sosial.</li>' +
+    '<li>QR hanya berlaku satu kali. Setelah dipindai, QR yang sama akan ditolak.</li>' +
+    '<li>Simpan email ini atau tangkap layar QR agar mudah dibuka tanpa sinyal.</li>' +
+    '</ul>' +
+    '<p style="margin:0 0 8px"><a href="' + escapeHtml(d.waGroup) + '" style="display:inline-block;background:#4d52b4;color:#ffffff;padding:12px 22px;border-radius:999px;text-decoration:none;font-size:15px">Gabung Grup WhatsApp</a></p>' +
+    '</td></tr></table>' +
+    '<p style="max-width:520px;margin:12px auto 0;text-align:center;font-size:12px;color:#4e6570">Email otomatis dari panitia ' + event + '. Pertanyaan? Hubungi panitia lewat grup WhatsApp.</p>' +
+    '</div>';
+
+  var text =
+    "Pendaftaran berhasil, " + d.fullName + "\n\n" +
+    "Nomor pendaftaran: " + d.registrationId + "\n" +
+    (d.eventInfo ? "Waktu & tempat: " + d.eventInfo + "\n" : "") +
+    "\nQR Code absensi ada di email ini (gambar). Jika tidak tampil, aktifkan tampilan gambar atau buka email lewat Gmail.\n" +
+    "QR bersifat pribadi dan hanya berlaku satu kali.\n\n" +
+    "Grup WhatsApp: " + d.waGroup + "\n";
+
+  return { html: html, text: text };
+}
+
+/* ------------------------------------------------------------------ */
+/* Utilitas manual (jalankan dari editor Apps Script)                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Uji kirim email QR contoh ke akun Google pemilik script.
+ * Pertama kali dijalankan akan meminta izin (Gmail kirim email + akses URL).
+ * QR contoh sah secara tanda tangan tetapi tidak ada di Sheet,
+ * jadi bila dipindai hasilnya "PESERTA TIDAK ADA" (itu normal).
+ */
+function testSendQrToMe() {
+  var me = Session.getEffectiveUser().getEmail();
+  var outcome = sendQrEmail("CF2026-TEST22", "Peserta Contoh", me);
+  Logger.log("Tujuan: " + me + " | Hasil: " + outcome.status + (outcome.note ? " | " + outcome.note : ""));
+}
+
+/** Kirim email QR ke semua peserta 'submitted' yang barcode_status-nya belum 'sent'. */
+function sendPendingQr() {
+  var sheet = getSheet();
+  var last = sheet.getLastRow();
+  if (last < 2) return;
+  var rows = sheet.getRange(2, 1, last - 1, HEADERS.length).getValues();
+  var sent = 0, failed = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    if (String(row[COL.status - 1]) !== "submitted") continue;
+    if (String(row[COL.barcode_status - 1]) === "sent") continue;
+    if (MailApp.getRemainingDailyQuota() < 1) { Logger.log("Kuota email habis, berhenti."); break; }
+    deliverQr(String(row[0]));
+    var after = String(sheet.getRange(i + 2, COL.barcode_status).getValue());
+    if (after === "sent") sent++; else failed++;
+  }
+  Logger.log("Terkirim: " + sent + " | Gagal: " + failed + " | Sisa kuota: " + MailApp.getRemainingDailyQuota());
 }
